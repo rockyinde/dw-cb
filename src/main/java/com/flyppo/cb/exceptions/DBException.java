@@ -1,23 +1,23 @@
 package com.flyppo.cb.exceptions;
 
 /**
- * generic DAO exception
+ * DB layer exception
  * 
- * @author mmt6461
+ * @author akshar
  *
  */
-public class DAOException extends Exception {
+public class DBException extends Exception {
 
     /**
      * 
      */
     private static final long serialVersionUID = 1L;
 
-    public DAOException (String message) {
+    public DBException (String message) {
         super(message);
     }
 
-    public DAOException (String message, Throwable cause) {
+    public DBException (String message, Throwable cause) {
         super(message, cause);
     }
 }

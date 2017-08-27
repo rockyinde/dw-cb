@@ -13,7 +13,6 @@ public class CouchbaseConfiguration {
 	private String couchNodeKeyList;
 	private String bucketName;
 	private String bucketPassword;
-	private String couchKeyPrefix;
-
-	public static final String COUCH_KEY_SEPARATOR = "::";
+	private String keyPrefix;
+	private String keySeparator;
 }

@@ -3,7 +3,6 @@ package com.flyppo.cb.service;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import javax.inject.Inject;
@@ -21,7 +20,7 @@ import com.couchbase.client.java.error.DocumentDoesNotExistException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flyppo.cb.config.CouchbaseConfiguration;
 import com.flyppo.cb.constants.LoggerConstants;
-import com.flyppo.cb.exceptions.DAOException;
+import com.flyppo.cb.exceptions.CouchbaseServiceException;
 import com.flyppo.cb.exceptions.DAOInvalidRequestException;
 
 import rx.Observable;
@@ -42,12 +41,9 @@ public class CouchbaseService {
 
     private static final String KEY_SEPARATOR = "::";
 
-    private ObjectMapper mapper;
-
-	@Inject
-	private Bucket bucket;
-	
-	private CouchbaseConfiguration configuration;
+    private final ObjectMapper mapper;
+	private final Bucket bucket;
+	private final CouchbaseConfiguration configuration;
     
     /**
      * constructor used for couchbase manager (cluster, bucket) creation
@@ -58,11 +54,11 @@ public class CouchbaseService {
      * @param opTimeoutMillis
      */
 	@Inject
-	public CouchbaseService(CouchbaseConfiguration configuration) {
+	public CouchbaseService(CouchbaseConfiguration configuration, Bucket bucket) {
 
-        LOGGER.info("Couchbase service constructor called");
         mapper = new ObjectMapper();
         this.configuration = configuration;
+        this.bucket = bucket;
 	}
 	
 	/**
@@ -129,31 +125,8 @@ public class CouchbaseService {
 		return appendVersion(key.toString());
 	}
 
-	/**
-	 * retrieves the object (generics) supported
-	 * 
-	 * @param key
-	 * @param klass
-	 * @return
-	 */
-	public <E> E getValue(String key, Class<E> klass) throws DAOException {
 
-		// get the JSON string from Couch
-		String json = getJSONValue(key);
-		if (!Objects.nonNull(json))
-			return null;
-		
-		// map JSON to Object
-		try {
-			return mapper.readValue(json, klass);
-		} catch (IOException e) {
-			LOGGER.error(LoggerConstants.COUCH_MAPPING_ERROR, getBucketName(), key, e);
-            LOGGER.error(LoggerConstants.COUCH_JSON_OBJECT_MAPPING_EXCEPTION, key, e);
-            throw new DAOInvalidRequestException(LoggerConstants.COUCH_JSON_OBJECT_MAPPING_EXCEPTION, e);
-		}
-	}
-
-	public void putValue(String key, Object value) throws DAOException {
+	public void putValue(String key, Object value) throws CouchbaseServiceException {
 		putValue(key, 0, value);
 	}
 
@@ -163,9 +136,9 @@ public class CouchbaseService {
 	 * @param key
 	 * @param ttl
 	 * @param value
-	 * @throws DAOException
+	 * @throws CouchbaseServiceException
 	 */
-	public void putValue(String key, int ttl, Object value) throws DAOException {
+	public void putValue(String key, int ttl, Object value) throws CouchbaseServiceException {
 		
 		// input validation
 		if (key == null || value == null || ttl < 0) {
@@ -195,7 +168,7 @@ public class CouchbaseService {
 
 		    LOGGER.error(LoggerConstants.COUCH_EXCEPTION_FOR_PUT_OPERATION, jsonObject.toString());
 		    LOGGER.error(LoggerConstants.COUCH_EXCEPTION, e);
-		    throw new DAOException(LoggerConstants.COUCH_EXCEPTION, e);
+		    throw new CouchbaseServiceException(LoggerConstants.COUCH_EXCEPTION, e);
 		}
 		long stop = System.currentTimeMillis();
 		
@@ -217,7 +190,7 @@ public class CouchbaseService {
 	 * 
 	 * @param key
 	 */
-	public void remove (String key) throws DAOException {
+	public void remove (String key) throws CouchbaseServiceException {
 	    
 	    try {
 	        bucket.remove(key);
@@ -230,7 +203,7 @@ public class CouchbaseService {
 	        
             LOGGER.error(LoggerConstants.COUCH_EXCEPTION_FOR_REMOVE_KEY, key);
 	        LOGGER.error(LoggerConstants.COUCH_EXCEPTION, e);
-	        throw new DAOException(LoggerConstants.COUCH_EXCEPTION, e);
+	        throw new CouchbaseServiceException(LoggerConstants.COUCH_EXCEPTION, e);
 	    }
 	}
 	
@@ -239,7 +212,7 @@ public class CouchbaseService {
      * @return bulk JsonDocument for input keys
      * @throws CacheException 
      */
-    public List<JsonDocument> bulkGet(final Collection<String> cacheKeys) throws DAOException {
+    public List<JsonDocument> bulkGet(final Collection<String> cacheKeys) throws CouchbaseServiceException {
         
         try{
             return Observable.from(cacheKeys).
@@ -250,7 +223,7 @@ public class CouchbaseService {
             // for timeout exception
             LOGGER.error(LoggerConstants.COUCH_EXCEPTION_FOR_BULK_GET);
             LOGGER.error(LoggerConstants.COUCH_EXCEPTION, e);
-            throw new DAOException(LoggerConstants.COUCH_EXCEPTION, e);
+            throw new CouchbaseServiceException(LoggerConstants.COUCH_EXCEPTION, e);
         }
     }
     
@@ -281,6 +254,16 @@ public class CouchbaseService {
      */
     public String appendVersion(String key) {
         
-        return new StringBuilder().append(configuration.getCouchKeyPrefix()).append(KEY_SEPARATOR).append(key).toString();
+        return new StringBuilder().append(configuration.getKeyPrefix()).append(KEY_SEPARATOR).append(key).toString();
+    }
+    
+    /**
+     * retrieves the singleton object mapper
+     * 
+     * @return
+     */
+    public ObjectMapper getObjectMapper() {
+    	
+    	return mapper;
     }
 }

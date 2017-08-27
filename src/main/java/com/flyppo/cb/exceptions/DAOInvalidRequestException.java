@@ -7,7 +7,7 @@ package com.flyppo.cb.exceptions;
  * @author mmt6461
  *
  */
-public class DAOInvalidRequestException extends DAOException {
+public class DAOInvalidRequestException extends CouchbaseServiceException {
 
     /**
      * 
